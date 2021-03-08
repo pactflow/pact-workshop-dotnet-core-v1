@@ -29,7 +29,7 @@ The below commands are designed for a Linux/OSX environment, please translate fo
     ```
 1. Run the provider tests
     ```
-    cd CompletedSolution/Consumer/tests
+    cd CompletedSolution/Provider/tests
     dotnet restore
     dotnet test
     ```

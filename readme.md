@@ -208,7 +208,7 @@ Pact works by placing a mock HTTP server between the consumer and provider(s) in
 side and replay this actions on the provider side to verify them. So before we can write Pact tests we need to setup and configure this mock server.
 This server will be used for all the tests in our Consumer test project.
 
-XUnit shares common resources in a few different ways. For this workshop, we shall create a [Class Fixture](https://xunit.github.io/docs/shared-context.html)
+XUnit shares common resources in a few different ways. For this workshop, we shall create a [Class Fixture](https://xunit.net/docs/shared-context)
 which will share our mock HTTP server between our consumer tests. Start by creating a file and class called ```ConsumerPactClassFixture.cs``` in the root of
 the Consumer test project (```[RepositoryRoot]/YourSolution/Consumer/tests```). It should look like:
 

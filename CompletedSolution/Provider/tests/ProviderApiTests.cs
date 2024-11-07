@@ -1,10 +1,11 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
-using PactNet;
 using PactNet.Infrastructure.Outputters;
-using tests.XUnitHelpers;
+using PactNet.Output.Xunit;
+using PactNet.Verifier;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -43,24 +44,37 @@ namespace tests
                 // so a custom outputter is required.
                 Outputters = new List<IOutput>
                                 {
-                                    new XUnitOutput(_outputHelper)
+                                    new XunitOutput(_outputHelper)
                                 },
 
                 // Output verbose verification logs to the test output
-                Verbose = true,
-                PublishVerificationResults = true,
-                ProviderVersion = "2.4.1-f3842db9e603d7",
-
+                LogLevel = PactNet.PactLogLevel.Debug
             };
 
             //Act / Assert
-            IPactVerifier pactVerifier = new PactVerifier(config);
-            pactVerifier.ProviderState($"{_pactServiceUri}/provider-states")
-                .ServiceProvider("Provider", _providerUri)
-                .HonoursPactWith("Consumer")
-                .PactBroker("https://dius.pact.dius.com.au",
-                    uriOptions: new PactUriOptions(System.Environment.GetEnvironmentVariable("PACT_BROKER_TOKEN")),
-                    consumerVersionTags: new List<string> { "master" })
+            string version = "2.4.1-f3842db9e603d7"; // hard-coded for demonstration
+            string branch = "master"; // hard-coded for demonstration
+            bool PublishVerificationResults = true; // hard-coded for demonstration
+
+            IPactVerifier pactVerifier = new PactVerifier("Provider", config);
+            pactVerifier.WithHttpEndpoint(new Uri(_providerUri))
+                .WithPactBrokerSource(new Uri(Environment.GetEnvironmentVariable("PACT_BROKER_BASE_URL")), options =>
+                {
+                    options.ConsumerVersionSelectors(
+                                new ConsumerVersionSelector { DeployedOrReleased = true },
+                                new ConsumerVersionSelector { MainBranch = true },
+                                new ConsumerVersionSelector { MatchingBranch = true }
+                            )
+                            .ProviderBranch(branch)
+                            .PublishResults(PublishVerificationResults, version, results =>
+                            {
+                                results.ProviderBranch(branch);
+                            })
+                            .EnablePending()
+                            .IncludeWipPactsSince(new DateTime(2022, 1, 1));
+                        options.TokenAuthentication(Environment.GetEnvironmentVariable("PACT_BROKER_TOKEN"));
+                })
+                .WithProviderStateUrl(new Uri($"{_pactServiceUri}/provider-states"))
                 .Verify();
         }
 

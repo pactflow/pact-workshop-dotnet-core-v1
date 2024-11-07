@@ -8,6 +8,7 @@ using PactNet.Output.Xunit;
 using PactNet.Verifier;
 using Xunit;
 using Xunit.Abstractions;
+using Provider;
 
 namespace tests
 {
@@ -15,7 +16,8 @@ namespace tests
     {
         private string _providerUri { get; }
         private string _pactServiceUri { get; }
-        private IWebHost _webHost { get; }
+        private IWebHost _providerStateHost { get; }
+        private IWebHost _sut { get; }
         private ITestOutputHelper _outputHelper { get; }
 
         public ProviderApiTests(ITestOutputHelper output)
@@ -24,12 +26,18 @@ namespace tests
             _providerUri = "http://localhost:9000";
             _pactServiceUri = "http://localhost:9001";
 
-            _webHost = WebHost.CreateDefaultBuilder()
+            _providerStateHost = WebHost.CreateDefaultBuilder()
                 .UseUrls(_pactServiceUri)
                 .UseStartup<TestStartup>()
                 .Build();
+            _providerStateHost.Start();
 
-            _webHost.Start();
+            _sut = WebHost.CreateDefaultBuilder()
+            .UseUrls(_providerUri)
+            .UseStartup<Startup>()
+            .Build();
+
+            _sut.Start();
         }
 
         [Fact]
@@ -57,7 +65,7 @@ namespace tests
             bool PublishVerificationResults = true; // hard-coded for demonstration
 
             IPactVerifier pactVerifier = new PactVerifier("Provider", config);
-            pactVerifier.WithHttpEndpoint(new Uri(_providerUri))
+                pactVerifier.WithHttpEndpoint(new Uri(_providerUri))
                 .WithPactBrokerSource(new Uri(Environment.GetEnvironmentVariable("PACT_BROKER_BASE_URL")), options =>
                 {
                     options.ConsumerVersionSelectors(
@@ -87,8 +95,11 @@ namespace tests
             {
                 if (disposing)
                 {
-                    _webHost.StopAsync().GetAwaiter().GetResult();
-                    _webHost.Dispose();
+                    
+                    _sut.StopAsync().GetAwaiter().GetResult();
+                    _sut.Dispose();
+                    _providerStateHost.StopAsync().GetAwaiter().GetResult();
+                    _providerStateHost.Dispose();
                 }
 
                 disposedValue = true;

@@ -35,7 +35,7 @@ namespace tests.Middleware
 
         private async Task RemoveAllData(IDictionary<string, object> parameters)
         {
-            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../../../../data");
+            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../data");
             var deletePath = Path.Combine(path, "somedata.txt");
 
             if (File.Exists(deletePath))
@@ -46,7 +46,7 @@ namespace tests.Middleware
 
         private async Task AddData(IDictionary<string, object> parameters)
         {
-            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../../../../data");
+            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../data");
 
             // Create the directory if it doesn't exist
             if (!Directory.Exists(path))

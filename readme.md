@@ -27,18 +27,13 @@ The below commands are designed for a Linux/OSX environment, please translate fo
     ```
     pact-broker can-i-deploy --pacticipant Consumer --latest --broker-base-url $PACT_BROKER_BASE_URL --broker-token $PACT_BROKER_TOKEN
     ```
-2. Start the provider in one terminal
-    ```
-    cd CompletedSolution/Provider/src
-    dotnet run
-    ```
-3. Run the provider tests in another terminal
+2. Run the provider tests in another terminal
     ```
     cd CompletedSolution/Provider/tests
     dotnet restore
     dotnet test
     ```
-4. Run the [can-i-deploy](https://docs.pact.io/pact_broker/can_i_deploy) check for the provider
+3. Run the [can-i-deploy](https://docs.pact.io/pact_broker/can_i_deploy) check for the provider
 
     ```
     pact-broker can-i-deploy --pacticipant Provider --latest --broker-base-url $PACT_BROKER_BASE_URL --broker-token $PACT_BROKER_TOKEN
@@ -59,7 +54,6 @@ The below commands are designed for a Linux/OSX environment, please translate fo
     - [Step 2.2 - Execute the Consumer](#step-22---execute-the-consumer)
   - [Step 3 - Testing the Consumer Project with Pact](#step-3---testing-the-consumer-project-with-pact)
     - [Step 3.1 - Creating a Test Project for Consumer with XUnit](#step-31---creating-a-test-project-for-consumer-with-xunit)
-      - [NB - Multiple OS Environments](#nb---multiple-os-environments)
     - [Step 3.2 - Configuring the Mock HTTP Pact Server on the Consumer](#step-32---configuring-the-mock-http-pact-server-on-the-consumer)
       - [Step 3.2.1 - Setup using PactBuilder](#step-321---setup-using-pactbuilder)
       - [Step 3.2.2 Tearing Down the Pact Mock HTTP Server \& Generating the Pact File](#step-322-tearing-down-the-pact-mock-http-server--generating-the-pact-file)
@@ -76,8 +70,7 @@ The below commands are designed for a Linux/OSX environment, please translate fo
     - [Step 4.2 - Creating the Provider API Pact Test](#step-42---creating-the-provider-api-pact-test)
     - [Step 4.2.1 - Creating the XUnitOutput Class](#step-421---creating-the-xunitoutput-class)
     - [Step 4.3 - Running Your Provider API Pact Test](#step-43---running-your-provider-api-pact-test)
-    - [Step 4.3.1 - Start Your Provider API Locally](#step-431---start-your-provider-api-locally)
-    - [Step 4.3.2 - Run your Provider API Pact Test](#step-432---run-your-provider-api-pact-test)
+    - [Step 4.3.1 - Run your Provider API Pact Test](#step-431---run-your-provider-api-pact-test)
   - [Step 5 - Missing Consumer Pact Test Cases](#step-5---missing-consumer-pact-test-cases)
 - [Copyright Notice \& Licence](#copyright-notice--licence)
 
@@ -227,12 +220,6 @@ need to do to test the code!
 
 Once this command runs successfully you will have in ```[RepositoryRoot]/YourSolution/Consumer/tests``` an empty .NET Core XUnit Project with Pact
 and we can begin to setup Pact!
-
-#### NB - Multiple OS Environments
-
-When using Pact tests for your production projects you might want to support multiple OSes. You can with .NET Core specify different packages in your
-**.csproj** file based on the operating system but for the purpose of this workshop this is unnecessary. Other language implementations do not always
-require OS based packages.
 
 ### Step 3.2 - Configuring the Mock HTTP Pact Server on the Consumer
 
@@ -884,7 +871,7 @@ The code for this looks like:
 
         private async Task RemoveAllData(IDictionary<string, object> parameters)
         {
-            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../../../../data");
+            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../data");
             var deletePath = Path.Combine(path, "somedata.txt");
 
             if (File.Exists(deletePath))
@@ -895,7 +882,7 @@ The code for this looks like:
 
         private async Task AddData(IDictionary<string, object> parameters)
         {
-            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../../../../data");
+            string path = Path.Combine(Directory.GetCurrentDirectory(), @"../../data");
 
             // Create the directory if it doesn't exist
             if (!Directory.Exists(path))
@@ -1057,7 +1044,10 @@ namespace tests.Middleware
 
 #### Step 4.1.2 - Starting the Provider States API When the Pact Tests Start
 
-Now we have a Provider States API we need to start it when our Provider Pact tests start.
+Now we have a Provider States API we need to start it when our Provider Pact tests start along with our Provider API.
+
+We could start our app manually, but here we create start it up in our test as our `_sut`.
+
 To do this first rename the provided test class when you created the XUnit project to
 ```ProviderApiTests.cs``` and include the code below:
 
@@ -1078,7 +1068,8 @@ namespace tests
     {
         private string _providerUri { get; }
         private string _pactServiceUri { get; }
-        private IWebHost _webHost { get; }
+        private IWebHost _providerStateHost { get; }
+        private IWebHost _sut { get; }
         private ITestOutputHelper _outputHelper { get; }
 
         public ProviderApiTests(ITestOutputHelper output)
@@ -1087,12 +1078,18 @@ namespace tests
             _providerUri = "http://localhost:9000";
             _pactServiceUri = "http://localhost:9001";
 
-            _webHost = WebHost.CreateDefaultBuilder()
+            _providerStateHost = WebHost.CreateDefaultBuilder()
                 .UseUrls(_pactServiceUri)
                 .UseStartup<TestStartup>()
                 .Build();
+            _providerStateHost.Start();
 
-            _webHost.Start();
+            _sut = WebHost.CreateDefaultBuilder()
+            .UseUrls(_providerUri)
+            .UseStartup<Startup>()
+            .Build();
+
+            _sut.Start();
         }
 
         [Fact]
@@ -1109,8 +1106,10 @@ namespace tests
             {
                 if (disposing)
                 {
-                    _webHost.StopAsync().GetAwaiter().GetResult();
-                    _webHost.Dispose();
+                    _sut.StopAsync().GetAwaiter().GetResult();
+                    _sut.Dispose();
+                    _providerStateHost.StopAsync().GetAwaiter().GetResult();
+                    _providerStateHost.Dispose();
                 }
 
                 disposedValue = true;
@@ -1229,29 +1228,7 @@ requests to the Provider API and we have a Pact test in the Provider API which c
 this Pact file to verify the mocks match the actual responses we should run the Provider
 tests!
 
-### Step 4.3.1 - Start Your Provider API Locally
-
-In the command line navigate to ```[RepositoryRoot]/YourSolution/Provider/src``` and run
-the command below to start the server:
-
-```
-dotnet run
-```
-
-This should show ouput similar to:
-
-```
-YourPC:src thomas.shipley$ dotnet run
-Using launch settings from /Users/thomas.shipley/code/thomas/pact-workshop-dotnet-core-v1/YourSolution/Provider/src/Properties/launchSettings.json...
-Hosting environment: Development
-Content root path: /Users/thomas.shipley/code/thomas/pact-workshop-dotnet-core-v1/YourSolution/Provider/src
-Now listening on: http://localhost:9000
-Application started. Press Ctrl+C to shut down.
-```
-
-If you see the output above leave that server running and move on to the next step!
-
-### Step 4.3.2 - Run your Provider API Pact Test
+### Step 4.3.1 - Run your Provider API Pact Test
 
 First, confirm you have a Pact file at ```[RepositoryRoot]/YourSolution/pacts``` called
 consumer-provider.json.

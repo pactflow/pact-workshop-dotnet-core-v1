@@ -167,7 +167,7 @@ navigate to ```[RepositoryRoot]/YourSolution/Consumer/tests``` and run:
 dotnet new xunit
 ```
 
-This will create an empty XUnit project with all the references you need... expect Pact. Depending on what OS you are completing this workshop on you will need
+This will create an empty XUnit project with all the references you need... except Pact. Depending on what OS you are completing this workshop on you will need
 to run one of the following commands:
 
 ```
